@@ -25,8 +25,8 @@ def send_at_input() :
         print(buffer.decode())
         buffer = ''
 def send_at(command) :
-    buffer2 = ''
     response = ''
+    buffer2 = ''
     ser.write((command+  '\r\n' ).encode())
     time.sleep(0.1)
     if ser.inWaiting():
@@ -36,14 +36,22 @@ def send_at(command) :
     if buffer2 != '' and ('+CGNSINF: ' in response):
         GPSDATA = str(response)
         new  = GPSDATA[GPSDATA.index("CGNSINF: ")+len("CGNSINF: "):]
-        print("Coordinates : [",new[23:42],"]")
+        date = new[4:12]
+        year = date[:4]
+        month = date[4:6]
+        day = date[6:8]
+        timing = new[12:18]
+        hours = timing[:2]
+        minutes = timing[2:4]
+        seconds = timing[4:6]
+        print("Coordinates : [",new[23:42],"][TIME][",year,"-",month,"-",day,"/",hours,"-",minutes,"-",seconds,"]")
         buffer2 = ''
     else :
-        print("[WARNING]---[No Coordinates Recieved !]")
+        print("[INFO]---[No Coordinates Recieved !]")
         buffer2 = ''
 
 def power_on(power_key):
-    print('GPS Module is starting:')
+	print('GPS Module is starting:')
 	GPIO.setmode(GPIO.BCM)
 	GPIO.setwarnings(False)
 	GPIO.setup(power_key,GPIO.OUT)
@@ -70,7 +78,11 @@ def main() :
         print("[INFO]----[READING NUMBER ",i,"]")
         send_at("AT+CGNSINF")
         time.sleep(1)
+
+
+
 power_on(power_key)
+time.sleep(2)
 while True :
     try :
         ser = serial.Serial('/dev/ttyS0',115200)
@@ -83,6 +95,7 @@ while True :
         print("[INTERRUPT]--[Keyboeard Interrupt]")
         power_down(power_key)
         break
-    except :
+    except Exception as e:
         print("[ERROR]----[Another Error]")
+        print(e)
         power_down(power_key)
