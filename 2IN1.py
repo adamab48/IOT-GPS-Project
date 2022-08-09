@@ -6,13 +6,13 @@ global debug
 debug = 1
 ser = serial.Serial('/dev/ttyS0',115200)
 ser.flushInput()
-
+global message
+message = ""
 power_key = 4
 rec_buff = ''
 APN = 'internet.ooredoo.tn'
 MQTT = 'test.mosquitto.org'
 Port = '1883'
-message = '33.485742,11.110844'
 
 def power_on(power_key):
     print('SIM7600X is starting:')
@@ -60,6 +60,7 @@ while True :
 		ser.flushInput()
 		send_at("AT+SMDISC")
 		send_at("AT+CNACT=0")
+		send_at("AT+CGNSPWR=1")
 		if "ERROR" in send_at("AT+CFUN?") :
 			print("retrying")
 			continue
@@ -71,17 +72,35 @@ while True :
 		send_at('AT+SMCONF="URL\",\"'+MQTT+'\",\"'+Port+'\"')
 		send_at('AT+SMCONF="KEEPTIME",60')
 		time.sleep(1)
-		send_at("AT+SMCONN")
+		if "ERROR" in send_at("AT+SMCONN") :
+			print("retrying")
+			continue
 		time.sleep(4)
 		send_at("AT")
 		print("conneting to server")
 		for i in range(5) :
-			print("sending message ",i)
-			send_at('AT+SMPUB="miralm",'+str(len(message))+',1,1')
-			time.sleep(1)
-			ser.write((message).encode())
-			time.sleep(4)
-			send_at("AT")
+			coordinates = send_at("AT+CGNSINF")
+			if "CGNSINF: " in coordinates :
+				GPSDATA = str(coordinates)
+				new  = GPSDATA[GPSDATA.index("CGNSINF: ")+len("CGNSINF: "):]
+				date = new[4:12]
+				year = date[:4]
+				month = date[4:6]
+				day = date[6:8]
+				timing = new[12:18]
+				hours = timing[:2]
+				minutes = timing[2:4]
+				seconds = timing[4:6]
+				message = new[23:42]+seconds
+				print("Coordinates : [",new[23:42],"][TIME][",year,"-",month,"-",day,"/",hours,"-",minutes,"-",seconds,"]")
+				time.sleep(2)
+				print("getting reading",i)
+				print("sending message ",i)
+				send_at('AT+SMPUB="miralm",'+str(len(message))+',1,1')
+				time.sleep(1)
+				ser.write((message).encode())
+				time.sleep(4)
+				send_at("AT")
 		send_at("AT+SMDISC")
 		send_at("AT+CNACT=0")
 		print("Message Sent !")
@@ -98,3 +117,6 @@ while True :
 		print("[ERROR]----[Another Error]")
 		print(e)
 		power_down(power_key)
+
+
+
